@@ -30,7 +30,7 @@ jobs:
       - name: Install Development Dependencies
         run: |
           echo "Installing development dependencies..."
-          pip install --upgrade pip && pip install --no-cache-dir -r dev-requirements.txt
+          pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
       - name: Validate Dockerfile
         run: |
