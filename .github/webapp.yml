@@ -1,0 +1,89 @@
+name: Multi-Stage Build and Deploy to Azure Web App
+
+env:
+  AWS_REGION: us-east-1                            # AWS region for ECR
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}    # AWS Account ID
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Development Dependencies
+        run: |
+          echo "Installing development dependencies..."
+          pip install --upgrade pip && pip install --no-cache-dir -r dev-requirements.txt
+
+      - name: Validate Dockerfile
+        run: |
+          echo "Validating Dockerfile syntax..."
+          docker run --rm -i hadolint/hadolint < Dockerfile
+
+      - name: Run flake8 (Python Linting)
+        run: |
+          echo "Running flake8 for linting..."
+          flake8 .
+
+      - name: Run Bandit (Security Analysis)
+        run: |
+          echo "Running Bandit for security checks..."
+          bandit -r . --exclude test_app.py
+
+  build:
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3 # v3.0.0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set ECR image URI
+        run: |
+          REPO=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$(basename "${GITHUB_REPOSITORY,,}")
+          echo "REPO=$REPO" >>${GITHUB_ENV}
+
+      - name: Build and push container image to Amazon ECR
+        uses: docker/build-push-action@v5 # v5.0.0
+        with:
+          push: ${{ github.event_name != 'pull_request' }}  # Push to ECR except for pull requests
+          tags: ${{ env.REPO }}:${{ github.sha }},${{ env.REPO }}:latest
+          file: ./Dockerfile
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Run Tests
+        run: |
+          echo "Running tests..."
+          # Add your additional test commands here
+          echo "Tests completed successfully."
