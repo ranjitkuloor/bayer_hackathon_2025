@@ -1,6 +1,6 @@
 FROM python:3.9-alpine AS builder
 
-RUN apk add --no-cache gcc=12.2.1_git20220924-r10 musl-dev=1.2.3_git20220926-r8 libffi-dev=3.4.4-r0
+RUN apk add --no-cache gcc musl-dev libffi-dev
 
 WORKDIR /app
 
