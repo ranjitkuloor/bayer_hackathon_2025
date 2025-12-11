@@ -1,5 +1,5 @@
 astroid==3.3.8
-bandit==1.7.6
+bandit==1.7.9
 black==25.1.0
 blinker==1.9.0
 click==8.1.8
